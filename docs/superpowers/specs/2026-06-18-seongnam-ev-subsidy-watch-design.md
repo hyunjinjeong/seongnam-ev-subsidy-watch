@@ -147,10 +147,10 @@
 ## 9. 실행 환경
 
 **기본: GitHub Actions** (`.github/workflows/`)
-- 두 개의 스케줄(한 워크플로의 cron 2개 + `if`로 모드 분기, 또는 워크플로 2개):
-  - **변화 감지**: `cron '*/15 * * * *'` → `python check.py --mode change` (15분 주기는 타임존 무관).
-  - **일일 보고서**: `cron '0 23 * * *'` → `python check.py --mode daily`.
-- 둘 다 `workflow_dispatch`로 수동 실행 가능.
+- **모드별로 워크플로 파일 2개**로 분리(각각 독립 스케줄·독립 수동 실행):
+  - `check-change.yml`: `cron '*/15 * * * *'` → `python check.py --mode change` (15분 주기는 타임존 무관).
+  - `daily-report.yml`: `cron '0 23 * * *'` → `python check.py --mode daily`.
+- **둘 다 `workflow_dispatch` 포함 → 언제든 수동 실행 가능.** 특히 **일일 보고서는 08:00을 기다리지 않고 즉시 dispatch로 돌려** 포맷·전송이 잘 되는지 확인할 수 있다(구현 후 검증용). 변화 감지도 dispatch로 현재 상태 점검 가능.
 - 단계: checkout → setup Python(uv) → `playwright install chromium` → `python check.py --mode ...` → 변경/보고 시 `state/` 커밋·푸시.
 - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`는 레포 Secret. 코드엔 비밀 없음.
 - public 레포 → Actions 실행 시간 무제한 무료.
@@ -178,6 +178,7 @@
 
 - **순수 로직 TDD**: `state`의 정규화/해시/diff, 숫자 셀 파싱(전체/우선순위/법인기관/택시/일반), 전일 대비 증감 계산, 키워드 플래그 판정, 메시지 포맷(변화 알림 / 일일 보고서) — 픽스처 기반 단위 테스트.
 - **스크래퍼**: 실제 사이트 대상 `python check.py --dry-run` 라이브 스모크(전송·저장 없음). 저장된 HTML 픽스처는 암호화 때문에 무의미하므로 라이브로 검증.
+- **배포 후 검증(수동 dispatch)**: GitHub Actions에서 `daily-report.yml`을 `workflow_dispatch`로 즉시 실행 → 휴대폰으로 일일 보고서 수신 확인. `check-change.yml`도 dispatch로 1회 실행해 동작 확인. (R1 검증도 이 dispatch로 겸함 — 10절.)
 
 ## 13. 비범위 (YAGNI)
 
