@@ -14,6 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true   # ~/.cache/uv(받은 패키지) 캐싱 → uv sync 단축
       - name: Cache Playwright 브라우저
         uses: actions/cache@v5
         with:
