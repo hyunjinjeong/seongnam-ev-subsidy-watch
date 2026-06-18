@@ -24,3 +24,25 @@ def test_parse_number_cell_missing_values_are_none():
     assert parse_number_cell("209") == {
         "전체": 209, "우선순위": None, "법인기관": None, "택시": None, "일반": None,
     }
+
+from ev_watch.scraper import _rows_from_raw
+
+def test_rows_from_raw_parses_numbers_and_keeps_text():
+    raw = [{
+        "시도": "경기", "차종": "전기승용",
+        "공고파일": ["본공고 1|A", "본공고 2|A02"],
+        "접수방법": "*일반: 출고등록순",
+        "민간공고대수_raw": "1949 (0)(0)(0)(1949)",
+        "접수대수_raw": "1745 (550)(49)(60)(1086)",
+        "출고대수_raw": "1740 (549)(49)(60)(1082)",
+        "출고잔여대수_raw": "209 (0)(0)(0)(867)",
+        "비고": "  ★ 성남시 ... 공고 마감 ",
+    }]
+    rows = _rows_from_raw(raw)
+    assert len(rows) == 1
+    r = rows[0]
+    assert r["차종"] == "전기승용"
+    assert r["공고파일"] == ["본공고 1|A", "본공고 2|A02"]
+    assert r["민간공고대수"]["전체"] == 1949
+    assert r["출고잔여대수"]["일반"] == 867
+    assert r["비고"] == "★ 성남시 ... 공고 마감"   # 정규화됨
