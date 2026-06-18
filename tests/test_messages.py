@@ -56,15 +56,17 @@ def test_daily_report_section_format():
     assert "공고 1,949 · 접수 1,745 · 출고 1,740" in msg    # 천단위 콤마 + 한 줄 요약
 
 
-def test_daily_report_truncates_long_remark():
+def test_daily_report_shows_full_remark_in_codeblock():
     long_remark = (
         "★ 성남시 전기자동차(승용, 화물) 보급사업 공고 마감★ "
-        "※ 예산 조기소진에 따라 추경예산 확보 후 공고 예정입니다. ○ 접수기간: 2026. 2. 9."
+        "※ 예산 조기소진에 따라 추경예산 확보 후 공고 예정입니다. ○ 접수기간: 2026. 2. 9. "
+        "○ 지원대수: 2,092대 * 제출서류 필수 확인"
     )
     rows = [_row(long_remark, ["본공고 1|A"])]
     msg = messages.format_daily_report(rows, {"전기승용": -3}, "2026-06-18 (목) 08:00", "http://x")
-    assert "공고 마감★" in msg     # ★…★ 머리말만 노출
-    assert "접수기간" not in msg    # 긴 본문은 잘림(전체는 변화 알림 diff로 확인)
+    assert "접수기간" in msg and "지원대수" in msg   # 전체 내용 노출(잘리지 않음)
+    assert "```" in msg                             # 비고는 코드블록(Markdown 안전)
+    assert "\n○ 접수기간" in msg                     # ○ 불릿 앞 줄바꿈 복원
 
 
 def test_startup_message():

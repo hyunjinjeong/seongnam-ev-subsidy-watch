@@ -1,3 +1,5 @@
+import re
+
 from .state import diff_remark
 
 _KEYWORDS = ["추경", "접수", "공고", "마감"]
@@ -24,13 +26,14 @@ def _first_line(s: str) -> str:
     return (s or "").strip().splitlines()[0] if (s or "").strip() else ""
 
 
-def _status_line(s: str, limit: int = 60) -> str:
-    """일일 보고서용 짧은 상태 한 줄. 공고문이 ★…★ 머리말이면 그 부분만,
-    아니면 limit자까지 자르고 …를 붙인다. (전체 공고문은 변화 알림 diff로 확인)"""
+_REMARK_BREAK = re.compile(r"\s*(○|※|\* |-{3,})")
+
+
+def _format_remark(s: str) -> str:
+    """비고 전체를 읽기 좋게: ○/※/* 불릿·구분선 앞에 줄바꿈을 넣는다(내용은 그대로 유지).
+    텔레그램 Markdown이 비고의 *·( 등을 잘못 해석하지 않도록 코드블록 안에 넣어 쓴다."""
     s = (s or "").strip()
-    if s.startswith("★") and s.count("★") >= 2:
-        return s[: s.index("★", 1) + 1]
-    return s if len(s) <= limit else s[:limit].rstrip() + "…"
+    return _REMARK_BREAK.sub(lambda m: "\n" + m.group(1), s).strip()
 
 
 def format_change_alert(old_rows: list[dict], new_rows: list[dict], url: str) -> str:
@@ -88,8 +91,10 @@ def format_daily_report(rows: list[dict], deltas: dict, now_str: str, url: str) 
             f" · 접수 {_comma(_num(r,'접수대수'))}"
             f" · 출고 {_comma(_num(r,'출고대수'))}"
         )
+        parts.append("")
         parts.append(f"📎 {files}")
-        parts.append(f"📌 {_status_line(r.get('비고',''))}")
+        parts.append("")
+        parts.append("📌 비고\n```\n" + _format_remark(r.get("비고", "")) + "\n```")
     parts.append("")
     parts.append(f"🔗 {url}")
     return "\n".join(parts)
