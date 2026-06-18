@@ -1,0 +1,38 @@
+# .github/workflows/check-change.yml
+name: check-change
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # 15분마다 (타임존 무관)
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: ev-watch-state      # 상태 커밋 충돌 방지(보고서와 공유)
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run python check.py --mode change
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      - name: Commit state if changed
+        if: always()
+        run: |
+          if ! git diff --quiet -- state/; then
+            git config user.name "ev-watch-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add state/
+            git commit -m "chore: update state [skip ci]"
+            git push
+          fi
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: debug-artifacts
+          path: artifacts/
+          if-no-files-found: ignore
