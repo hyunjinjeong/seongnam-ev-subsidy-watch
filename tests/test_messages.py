@@ -24,6 +24,8 @@ def test_change_alert_contains_diff_and_file_change_and_link():
     assert "추경 접수 시작" in msg      # diff에 신규 텍스트
     assert "B" in msg                    # 신규 공고파일 코드
     assert "http://x" in msg
+    assert "추경공고" in msg             # 가독성 있는 라벨 표시
+    assert "추경공고|B" not in msg       # 파이프 형식 미노출
 
 
 def test_daily_report_shows_remaining_delta_and_date():

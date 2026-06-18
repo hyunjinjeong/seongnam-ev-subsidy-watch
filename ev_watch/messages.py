@@ -12,6 +12,14 @@ def _codes(rows: list[dict]) -> set[str]:
     return {f for r in rows for f in r.get("공고파일", [])}
 
 
+def _fmt_file(s: str) -> str:
+    """Format '라벨|코드' to '라벨 (코드)'. If no |, return as-is."""
+    if "|" in s:
+        label, code = s.split("|", 1)
+        return f"{label} ({code})"
+    return s
+
+
 def _first_line(s: str) -> str:
     return (s or "").strip().splitlines()[0] if (s or "").strip() else ""
 
@@ -29,9 +37,9 @@ def format_change_alert(old_rows: list[dict], new_rows: list[dict], url: str) ->
         f"키워드: {flag_line}",
     ]
     if added:
-        parts.append(f"➕ 공고파일 추가: {', '.join(added)}")
+        parts.append(f"➕ 공고파일 추가: {', '.join(_fmt_file(f) for f in added)}")
     if removed:
-        parts.append(f"➖ 공고파일 삭제: {', '.join(removed)}")
+        parts.append(f"➖ 공고파일 삭제: {', '.join(_fmt_file(f) for f in removed)}")
     if diff.strip():
         parts.append("📝 비고 변경:\n```\n" + diff + "\n```")
     parts.append(f"🔗 {url}")
