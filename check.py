@@ -15,7 +15,8 @@ def _save_failure(state_path, url, send):
 def do_change(fetch, send, *, state_path, url, now_iso):
     try:
         rows = fetch()
-    except Exception:
+    except Exception as exc:
+        print(f"[WARN] 성남시 스크랩 실패: {exc}", file=sys.stderr)
         return _save_failure(state_path, url, send)
     new_hash = state.compute_change_hash(rows)
     prev = state.load_state(state_path)
@@ -39,7 +40,8 @@ def do_change(fetch, send, *, state_path, url, now_iso):
 def do_daily(fetch, send, *, state_path, url, now_str):
     try:
         rows = fetch()
-    except Exception:
+    except Exception as exc:
+        print(f"[WARN] 성남시 스크랩 실패: {exc}", file=sys.stderr)
         return _save_failure(state_path, url, send)
     prev = state.load_state(state_path) or {}
     today_nums = state.report_numbers(rows)
