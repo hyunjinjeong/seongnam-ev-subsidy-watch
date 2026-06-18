@@ -43,7 +43,28 @@ def test_daily_report_shows_remaining_delta_and_date():
 def test_daily_report_handles_none_delta():
     rows = [_row("공고 마감", ["본공고 1|A"])]
     msg = messages.format_daily_report(rows, {"전기승용": None}, "2026-06-18 08:00", "http://x")
-    assert "209" in msg   # delta 없어도 현황은 나온다
+    assert "209" in msg            # delta 없어도 현황은 나온다
+    assert "전일 대비" not in msg   # delta None이면 전일 대비 줄 생략
+
+
+def test_daily_report_section_format():
+    rows = [_row("공고 마감", ["본공고 1|A"])]
+    msg = messages.format_daily_report(rows, {"전기승용": -3}, "2026-06-18 (목) 08:00", "http://x")
+    assert "🚙 *전기승용*" in msg                          # 차종 섹션 헤더
+    assert "잔여대수 209대" in msg                          # 잔여 강조
+    assert "전일 대비 -3대" in msg                          # 전일 대비 라인
+    assert "공고 1,949 · 접수 1,745 · 출고 1,740" in msg    # 천단위 콤마 + 한 줄 요약
+
+
+def test_daily_report_truncates_long_remark():
+    long_remark = (
+        "★ 성남시 전기자동차(승용, 화물) 보급사업 공고 마감★ "
+        "※ 예산 조기소진에 따라 추경예산 확보 후 공고 예정입니다. ○ 접수기간: 2026. 2. 9."
+    )
+    rows = [_row(long_remark, ["본공고 1|A"])]
+    msg = messages.format_daily_report(rows, {"전기승용": -3}, "2026-06-18 (목) 08:00", "http://x")
+    assert "공고 마감★" in msg     # ★…★ 머리말만 노출
+    assert "접수기간" not in msg    # 긴 본문은 잘림(전체는 변화 알림 diff로 확인)
 
 
 def test_startup_message():

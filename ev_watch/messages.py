@@ -24,6 +24,15 @@ def _first_line(s: str) -> str:
     return (s or "").strip().splitlines()[0] if (s or "").strip() else ""
 
 
+def _status_line(s: str, limit: int = 60) -> str:
+    """일일 보고서용 짧은 상태 한 줄. 공고문이 ★…★ 머리말이면 그 부분만,
+    아니면 limit자까지 자르고 …를 붙인다. (전체 공고문은 변화 알림 diff로 확인)"""
+    s = (s or "").strip()
+    if s.startswith("★") and s.count("★") >= 2:
+        return s[: s.index("★", 1) + 1]
+    return s if len(s) <= limit else s[:limit].rstrip() + "…"
+
+
 def format_change_alert(old_rows: list[dict], new_rows: list[dict], url: str) -> str:
     flags = keyword_flags(new_rows)
     flag_line = " ".join(f"{k}={'✅' if v else '⬜'}" for k, v in flags.items())
@@ -51,22 +60,38 @@ def _num(row: dict, col: str, key: str = "전체"):
     return v if v is not None else "-"
 
 
+def _comma(v) -> str:
+    """천단위 콤마. 정수가 아니면(없음 등) '-'."""
+    return f"{v:,}" if isinstance(v, int) else "-"
+
+
 def format_daily_report(rows: list[dict], deltas: dict, now_str: str, url: str) -> str:
-    parts = [f"📋 *성남시 전기차 보조금 일일 현황* ({now_str} KST)"]
+    parts = [
+        "📋 *성남시 전기차 보조금 일일 현황*",
+        f"🗓 {now_str} KST",
+    ]
     for r in rows:
         차종 = r.get("차종", "")
         d = deltas.get(차종)
-        delta_str = "" if d is None else f" [전일 {d:+d}]"
-        잔여전체 = _num(r, "출고잔여대수")
-        잔여일반 = _num(r, "출고잔여대수", "일반")
+        files = " · ".join(_fmt_file(f) for f in r.get("공고파일", [])) or "-"
+        parts.append("")
+        parts.append(f"🚙 *{차종}*")
         parts.append(
-            f"\n*{차종}*\n"
-            f"· 잔여대수: 전체 {잔여전체} (일반 {잔여일반}){delta_str}\n"
-            f"· 접수 {_num(r,'접수대수')} / 출고 {_num(r,'출고대수')} / 공고 {_num(r,'민간공고대수')}\n"
-            f"· 공고파일: {', '.join(_fmt_file(f) for f in r.get('공고파일', [])) or '-'}\n"
-            f"· 비고: {_first_line(r.get('비고',''))}"
+            f"🔋 *잔여대수 {_comma(_num(r,'출고잔여대수'))}대*"
+            f"  (일반 {_comma(_num(r,'출고잔여대수','일반'))})"
         )
-    parts.append(f"\n🔗 {url}")
+        if d is not None:
+            parts.append(f"📉 전일 대비 {d:+d}대")
+        parts.append("─────────────")
+        parts.append(
+            f"공고 {_comma(_num(r,'민간공고대수'))}"
+            f" · 접수 {_comma(_num(r,'접수대수'))}"
+            f" · 출고 {_comma(_num(r,'출고대수'))}"
+        )
+        parts.append(f"📎 {files}")
+        parts.append(f"📌 {_status_line(r.get('비고',''))}")
+    parts.append("")
+    parts.append(f"🔗 {url}")
     return "\n".join(parts)
 
 

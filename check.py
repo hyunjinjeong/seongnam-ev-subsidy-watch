@@ -4,6 +4,8 @@ import os
 import sys
 from ev_watch import config, state, messages, scraper, notifier
 
+_KOR_DOW = ["월", "화", "수", "목", "금", "토", "일"]
+
 def _save_failure(state_path, url, send):
     st = state.load_state(state_path) or {}
     st["consecutive_failures"] = st.get("consecutive_failures", 0) + 1
@@ -97,8 +99,9 @@ def main(argv=None):
         do_change(scraper.fetch_seongnam_rows, send,
                   state_path=config.STATE_PATH, url=config.URL, now_iso=now.isoformat())
     elif args.mode == "daily":
+        now_str = f"{now:%Y-%m-%d} ({_KOR_DOW[now.weekday()]}) {now:%H:%M}"
         do_daily(scraper.fetch_seongnam_rows, send,
-                 state_path=config.STATE_PATH, url=config.URL, now_str=f"{now:%Y-%m-%d %H:%M}")
+                 state_path=config.STATE_PATH, url=config.URL, now_str=now_str)
     else:
         ap.error("--mode 또는 --get-chat-id/--test-telegram/--dry-run 중 하나 필요")
     return 0
