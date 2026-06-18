@@ -875,6 +875,14 @@ def test_do_change_no_change_is_silent(tmp_path):
     assert code == "nochange"
     assert len(sent) == 1   # 시작 메시지 1개뿐, 추가 알림 없음
 
+def test_do_change_no_change_does_not_rewrite_state(tmp_path):
+    # nochange + 실패카운트 0이면 상태 파일을 다시 쓰지 않아야 함(커밋 churn 방지)
+    sp = str(tmp_path / "s.json")
+    send, _ = _sender()
+    check.do_change(lambda: [_row()], send, state_path=sp, url="u", now_iso="t1")   # baseline
+    check.do_change(lambda: [_row(잔여=5)], send, state_path=sp, url="u", now_iso="t2")  # nochange
+    assert json.load(open(sp, encoding="utf-8"))["fetched_at"] == "t1"   # t2로 갱신되지 않음
+
 def test_do_change_detects_remark_change(tmp_path):
     sp = str(tmp_path / "s.json")
     send, sent = _sender()
@@ -943,7 +951,11 @@ def do_change(fetch, send, *, state_path, url, now_iso):
         state.save_state(state_path, base)
         return "first"
     if prev.get("hash") == new_hash:
-        state.save_state(state_path, base)   # 실패카운트 리셋·시간 갱신
+        # 변화 없음: 매번 rewrite하면 15분마다 state 커밋이 쌓이므로(churn),
+        # 직전에 실패 카운트가 남아있을 때만 리셋 저장한다.
+        if prev.get("consecutive_failures"):
+            prev["consecutive_failures"] = 0
+            state.save_state(state_path, prev)
         return "nochange"
     send(messages.format_change_alert(prev.get("rows", []), rows, url))
     state.save_state(state_path, base)
