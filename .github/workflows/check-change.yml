@@ -12,9 +12,15 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8
+      - name: Cache Playwright 브라우저
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('uv.lock') }}
       - run: uv sync
+      # 캐시 적중 시 Chromium 다운로드는 생략되고 OS deps만 설치됨
       - run: uv run playwright install --with-deps chromium
       - run: uv run python check.py --mode change
         env:
@@ -30,7 +36,7 @@ jobs:
             git commit -m "chore: update state [skip ci]"
             git push
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: debug-artifacts
