@@ -1,4 +1,3 @@
-import json
 from ev_watch import state
 
 

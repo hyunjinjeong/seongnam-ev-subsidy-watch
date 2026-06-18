@@ -36,6 +36,8 @@ def test_daily_report_shows_remaining_delta_and_date():
     assert "209" in msg                  # 잔여 전체
     assert "-3" in msg                   # 전일 대비
     assert "http://x" in msg
+    assert "본공고 1 (A)" in msg          # formatted file label
+    assert "본공고 1|A" not in msg        # raw piped form not exposed
 
 
 def test_daily_report_handles_none_delta():

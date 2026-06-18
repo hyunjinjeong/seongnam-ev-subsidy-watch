@@ -63,7 +63,7 @@ def format_daily_report(rows: list[dict], deltas: dict, now_str: str, url: str) 
             f"\n*{차종}*\n"
             f"· 잔여대수: 전체 {잔여전체} (일반 {잔여일반}){delta_str}\n"
             f"· 접수 {_num(r,'접수대수')} / 출고 {_num(r,'출고대수')} / 공고 {_num(r,'민간공고대수')}\n"
-            f"· 공고파일: {', '.join(r.get('공고파일', [])) or '-'}\n"
+            f"· 공고파일: {', '.join(_fmt_file(f) for f in r.get('공고파일', [])) or '-'}\n"
             f"· 비고: {_first_line(r.get('비고',''))}"
         )
     parts.append(f"\n🔗 {url}")
