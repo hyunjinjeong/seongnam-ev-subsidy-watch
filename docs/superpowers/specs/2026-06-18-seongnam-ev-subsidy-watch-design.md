@@ -2,7 +2,7 @@
 
 - 작성일: 2026-06-18
 - 상태: 설계 확정 (구현 전)
-- 레포: `~/dev/github/ev-subsidy-watch` (개인 github.com, public)
+- 레포: `~/dev/github/seongnam-ev-subsidy-watch` (개인 github.com, public)
 
 ## 1. 목적
 
