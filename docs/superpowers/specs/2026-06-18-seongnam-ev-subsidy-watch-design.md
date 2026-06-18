@@ -7,7 +7,9 @@
 ## 1. 목적
 
 [무공해차 통합누리집 구매보조금 지급현황 페이지](https://ev.or.kr/nportal/buySupprt/initSubsidyPaymentCheckAction.do)의
-**성남시 행**을 주기적으로 읽어, **전기차 보조금(특히 하반기 추경) 공고가 갱신되면 Slack으로 알림**을 받는다.
+**성남시 행**을 주기적으로 읽어, **전기차 보조금(특히 하반기 추경) 공고가 갱신되면 텔레그램으로 알림**을 받는다.
+
+> 알림 채널 결정: 사내 Slack은 (1) admin 정책상 인커밍 webhook 생성이 막힐 수 있고 (2) 개인 프로젝트를 사내 워크스페이스로 흘리고 사내 webhook을 개인 public 레포 Secret에 저장하는 것이 거버넌스상 부적절하여 제외. 텔레그램은 봇 토큰이 만료·리프레시가 없고 GitHub Actions에서 바로 전송 가능해 채택. (카카오톡 "나에게 보내기"는 OAuth 토큰 6시간 만료·리프레시 관리 부담으로 제외.)
 
 현재 성남시 비고란은 "공고 마감 / 추경예산 확보 후 공고 및 접수 예정"이며, 추경 공고가 열리면 이 텍스트나 공고파일이 바뀐다.
 
@@ -68,7 +70,7 @@
 |---|---|---|
 | `scraper.py` | `fetch_seongnam_rows() -> list[dict]` : Playwright로 경기도→성남시 조회 후 성남시 행들의 `{차종, 공고파일코드, 접수방법, 비고}` 반환 | Playwright |
 | `state.py` | 직전 스냅샷(`state/seongnam.json`) 로드/저장, 정규화·해시, diff 계산 | 표준 라이브러리 |
-| `notifier.py` | `send_slack(text)` : webhook POST (2~3회 재시도) | httpx, `SLACK_WEBHOOK_URL` |
+| `notifier.py` | `send_telegram(text)` : `api.telegram.org/bot<token>/sendMessage` POST (2~3회 재시도) | httpx, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` |
 | `check.py` | 오케스트레이터: fetch → 정규화·해시 → 비교 → 변화 시 메시지 생성 → 알림 → 상태 저장 | 위 모듈 |
 
 `check.py`는 `--dry-run` 옵션 지원: 추출 결과만 출력하고 전송·저장하지 않음 (스모크/디버깅용).
@@ -80,16 +82,17 @@
 3. `scraper`가 성남시 행 추출 → `state`가 정규화·canonical 직렬화 → sha256 해시.
 4. 직전 해시와 비교:
    - **같으면** 종료 (아무 동작 없음).
-   - **다르면** Slack 메시지(이전→현재 diff + 키워드 플래그 + 페이지 링크) 전송 → 새 상태 파일을 레포에 **커밋·푸시**(다음 비교 기준).
+   - **다르면** 텔레그램 메시지(이전→현재 diff + 키워드 플래그 + 페이지 링크) 전송 → 새 상태 파일을 레포에 **커밋·푸시**(다음 비교 기준).
 5. **첫 실행**(상태 파일 없음): 알림 대신 "✅ 감시 시작 — 현재 상태: …" 1회 전송 후 베이스라인 저장 (동작 확인용).
 
-## 6. 알림 형식 (Slack)
+## 6. 알림 형식 (텔레그램)
 
 변화 감지 시:
 - 제목: `🔔 성남시 전기차 보조금 공고 변화 감지`
 - **키워드 플래그**: 비고/공고파일에서 `추경`, `접수`, `공고`, `마감` 출현 여부 및 "마감" 문구 사라짐 여부.
 - **diff**: 이전 비고 → 현재 비고의 변경 부분(unified diff 일부), 공고파일 코드 집합 변화(추가/삭제된 코드).
 - 페이지 링크.
+- 전송: `sendMessage`에 `parse_mode`(Markdown 또는 HTML)와 `disable_web_page_preview=true` 사용. 메시지가 길면 텔레그램 4096자 제한에 맞춰 잘라 보낸다.
 
 같은 내용은 새 상태로 저장되므로 반복 알림 없음(스팸 방지).
 
@@ -115,14 +118,14 @@
 - "성남시 행을 못 찾음"(셀렉터 실패 = 스크랩 깨짐)과 "내용이 진짜 바뀜"을 구분한다. 표/행 자체가 안 보이면 실패로 간주(변화로 오인 금지).
 - **N회 연속 실패 시에만** `⚠️ 체크 실패 N회` Slack 알림 (일시적 오류로 인한 스팸 방지). 기본 N=3.
 - 실패 시 **스크린샷 + DOM 일부를 워크플로 아티팩트**로 업로드해 디버깅.
-- **Slack 전송 실패**: 지수 백오프로 2~3회 재시도.
+- **텔레그램 전송 실패**: 지수 백오프로 2~3회 재시도.
 
 ## 9. 실행 환경
 
 **기본: GitHub Actions** (`.github/workflows/check.yml`)
 - `schedule: cron '*/15 * * * *'` (15분, UTC 기준이나 절대주기라 무관) + `workflow_dispatch`.
 - 단계: checkout → setup Python(uv) → `playwright install chromium` → `python check.py` → 변경 시 `state/` 커밋·푸시.
-- `SLACK_WEBHOOK_URL`은 레포 Secret. 코드엔 비밀 없음.
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`는 레포 Secret. 코드엔 비밀 없음.
 - public 레포 → Actions 실행 시간 무제한 무료.
 
 **폴백: 본인 맥 launchd** — 동일 `check.py`를 한국 IP에서 실행. R1(아래)이 현실화되면 전환.
@@ -137,13 +140,13 @@
 
 ## 11. 설정 / 시크릿
 
-- `SLACK_WEBHOOK_URL` (GitHub Secret / 맥 실행 시 env).
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (GitHub Secret / 맥 실행 시 env). 발급 방법은 14절 참조.
 - 상수: 경기도=`4100`, 성남시=`4113`, 연도=현재년도(기본 2026), 차종 기본값.
 - `CONSECUTIVE_FAILURE_THRESHOLD`(기본 3).
 
 ## 12. 테스트 전략
 
-- **순수 로직 TDD**: `state`의 정규화/해시/diff, 키워드 플래그 판정, Slack 메시지 포맷 — 픽스처 기반 단위 테스트.
+- **순수 로직 TDD**: `state`의 정규화/해시/diff, 키워드 플래그 판정, 텔레그램 메시지 포맷 — 픽스처 기반 단위 테스트.
 - **스크래퍼**: 실제 사이트 대상 `python check.py --dry-run` 라이브 스모크(전송·저장 없음). 저장된 HTML 픽스처는 암호화 때문에 무의미하므로 라이브로 검증.
 
 ## 13. 비범위 (YAGNI)
@@ -152,3 +155,16 @@
 - 공고문 hwpx/pdf 파일 내용 파싱(버튼/코드 존재 여부만 감지).
 - 웹 대시보드/DB. (상태는 레포의 JSON 파일로 충분.)
 - 조용시간(야간 알림 억제) — 한 번 바뀌면 1회만 알리므로 불필요.
+
+## 14. 텔레그램 설정 가이드 (처음 쓰는 경우)
+
+사용자가 텔레그램을 처음 쓰므로, 구현 중 아래 순서로 함께 진행한다. **1~3은 사용자가 직접**(앱·BotFather 상호작용), **4~5는 구현 측이 헬퍼로 지원**한다.
+
+1. **텔레그램 설치·가입**: 모바일 또는 데스크톱 앱 설치 → 전화번호로 가입.
+2. **봇 생성**: 텔레그램에서 `@BotFather` 검색 → `/newbot` → 봇 표시이름과 username(끝이 `bot`) 입력 → **봇 토큰** 발급(`123456789:AAH...` 형식). 이게 `TELEGRAM_BOT_TOKEN`.
+3. **봇과 대화 시작**: BotFather가 준 링크 `t.me/<봇username>`을 열어 **`/start`** 를 한 번 누른다. (이걸 해야 봇이 나에게 메시지를 보낼 수 있음.)
+4. **chat_id 알아내기**: 구현 측이 헬퍼 제공 — `python check.py --get-chat-id`(또는 별도 스크립트)가 `getUpdates`를 호출해 `chat.id`를 출력. 이게 `TELEGRAM_CHAT_ID`. (대안: `@userinfobot`에게 말 걸어 확인.)
+5. **테스트 전송**: `python check.py --test-telegram`으로 "✅ 연결 테스트" 메시지를 보내 휴대폰에서 수신 확인.
+6. **시크릿 등록**: 두 값을 GitHub 레포 `Settings → Secrets and variables → Actions`에 `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`로 등록. (맥 실행 시엔 환경변수 또는 `.env` 로컬 파일 — 깃에 커밋 금지.)
+
+구현 계획에는 위 헬퍼(`--get-chat-id`, `--test-telegram`)를 초기 작업에 포함하여, 사용자가 단계마다 동작을 확인할 수 있게 한다.
