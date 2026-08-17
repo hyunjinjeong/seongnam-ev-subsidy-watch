@@ -12,7 +12,13 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
+      # checkout 기본값은 트리거 시점의 github.sha라, concurrency 큐에서 대기하는 동안
+      # 다른 워크플로가 state를 커밋하면 낡은 베이스를 집는다(→ push 거부).
+      # ref로 브랜치 tip을, fetch-depth 0으로 rebase 가능한 히스토리를 받는다.
       - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v8.2.0
       - name: Cache Playwright 브라우저
         uses: actions/cache@v5
@@ -35,6 +41,9 @@ jobs:
             git config user.email "actions@users.noreply.github.com"
             git add state/
             git commit -m "chore: update state [skip ci]"
+            # checkout~push 사이에 끼어든 push 대비. state/를 양쪽이 고쳐 충돌하면
+            # 조용히 덮어쓰지 않고 이 스텝을 실패시킨다(잘못된 hash 복구 방지).
+            git pull --rebase
             git push
           fi
       - uses: actions/upload-artifact@v7
