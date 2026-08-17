@@ -35,7 +35,12 @@ def do_change(fetch, send, *, state_path, url, now_iso):
             prev["consecutive_failures"] = 0
             state.save_state(state_path, prev)
         return "nochange"
-    send(messages.format_change_alert(prev.get("rows", []), rows, url))
+    msg = messages.format_change_alert(prev.get("rows", []), rows, url)
+    if msg is None:
+        # 해시 계산 기준이 바뀐 경우 등: 보여줄 내용이 없으면 빈 알림 대신 상태만 갱신
+        state.save_state(state_path, base)
+        return "nochange"
+    send(msg)
     state.save_state(state_path, base)
     return "changed"
 
@@ -84,7 +89,11 @@ def main(argv=None):
         if args.dry_run:
             print("[DRY-RUN 전송]\n" + text)
             return True
-        return notifier.send_telegram(token, chat_id, text)
+        ok = notifier.send_telegram(token, chat_id, text)
+        if not ok:
+            # HTML parse_mode라 태그가 깨지면 400이 나고 조용히 미발송된다. 흔적을 남긴다.
+            print("[WARN] 텔레그램 전송 실패(재시도 소진)", file=sys.stderr)
+        return ok
 
     if args.test_telegram:
         send(f"✅ 연결 테스트 ({now:%Y-%m-%d %H:%M} KST)")

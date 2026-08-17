@@ -7,6 +7,9 @@ def _row(비고="공고 마감", 공고파일=None, 차종="전기승용", 잔�
         "공고파일": 공고파일 if 공고파일 is not None else ["본공고 1|A", "본공고 2|A02"],
         "접수방법": "*일반: 출고등록순",
         "비고": 비고,
+        "공고종류": "본공고",
+        "접수기간": "2026.02.09 10:00 ~ 2026.05.13 18:00",
+        "신청마감": "2026.05.18 18:00",
         "출고잔여대수": {"전체": 잔여},
     }
 
@@ -46,9 +49,33 @@ def test_save_then_load_roundtrip(tmp_path):
     assert state.load_state(p) == {"hash": "abc", "비고": "추경"}
 
 
-def test_diff_remark_shows_change():
-    d = state.diff_remark("공고 마감", "추경 공고 접수 시작")
-    assert "공고 마감" in d and "추경 공고 접수 시작" in d
+def test_diff_remark_shows_only_changed_lines():
+    d = state.diff_remark("가\n나\n다", "가\n나 수정\n다")
+    assert d.splitlines() == ["➖ 나", "➕ 나 수정"]   # context 줄과 diff 헤더 없음
+
+
+def test_diff_remark_hunks_groups_by_location():
+    hunks = state.diff_remark_hunks("가\n나\n다\n라\n마\n바\n사",
+                                    "가 수정\n나\n다\n라\n마\n바\n사 수정")
+    assert len(hunks) == 2          # 앞뒤 두 군데
+
+
+def test_diff_remark_empty_when_same():
+    assert state.diff_remark_hunks("같음", "같음") == []
+
+
+def test_hash_changes_when_deadline_changes():
+    a = _row()
+    b = _row()
+    b["신청마감"] = "2026.06.30 18:00"
+    assert state.compute_change_hash([a]) != state.compute_change_hash([b])
+
+
+def test_hash_changes_when_notice_kind_changes():
+    a = _row()
+    b = _row()
+    b["공고종류"] = "추경공고"
+    assert state.compute_change_hash([a]) != state.compute_change_hash([b])
 
 
 def test_report_numbers_extracts_total():

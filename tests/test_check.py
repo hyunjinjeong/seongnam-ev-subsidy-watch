@@ -54,6 +54,18 @@ def test_do_change_detects_remark_change(tmp_path):
     assert code == "changed"
     assert "변화 감지" in sent[-1]
 
+def test_do_change_adopts_new_hash_without_empty_alert(tmp_path):
+    """해시 계산 기준이 바뀌어 해시만 달라진 경우, 빈 알림 대신 조용히 상태만 갱신한다."""
+    sp = str(tmp_path / "s.json")
+    send, sent = _sender()
+    check.do_change(lambda: [_row()], send, state_path=sp, url="u", now_iso="t1")  # baseline
+    check.state.save_state(sp, {**json.load(open(sp, encoding="utf-8")), "hash": "stale"})
+    code = check.do_change(lambda: [_row()], send, state_path=sp, url="u", now_iso="t2")
+    assert code == "nochange"
+    assert len(sent) == 1                                        # 시작 메시지뿐
+    assert json.load(open(sp, encoding="utf-8"))["hash"] != "stale"   # 새 해시는 채택
+
+
 def test_do_change_failure_increments_and_alerts_at_threshold(tmp_path):
     sp = str(tmp_path / "s.json")
     send, sent = _sender()

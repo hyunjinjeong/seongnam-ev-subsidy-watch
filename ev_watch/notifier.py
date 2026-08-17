@@ -25,7 +25,9 @@ def send_telegram(token, chat_id, text, *, post=None, sleep=None, max_retries=3)
     payload = {
         "chat_id": str(chat_id),
         "text": text,
-        "parse_mode": "Markdown",
+        # HTML 모드여야 접히는 인용문(<blockquote expandable>)을 쓸 수 있다.
+        # messages.py가 동적 문자열을 모두 이스케이프해서 넘긴다.
+        "parse_mode": "HTML",
         "disable_web_page_preview": True,
     }
     for attempt in range(max_retries):
