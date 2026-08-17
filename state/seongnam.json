@@ -1,5 +1,5 @@
 {
-  "consecutive_failures": 0,
+  "consecutive_failures": 2,
   "hash": "903ec6d98c6b2506dd4dc8cfe6377990e158c50970f3274bd9a893d7599048bf",
   "rows": [
     {
@@ -64,7 +64,7 @@
   "last_report": [
     {
       "차종": "전기승용",
-      "출고잔여대수_전체": 204
+      "출고잔여대수_전체": 205
     }
   ]
 }
