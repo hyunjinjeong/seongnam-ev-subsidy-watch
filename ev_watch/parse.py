@@ -1,15 +1,17 @@
 import re
-from .config import NUMBER_KEYS
 
 _WS = re.compile(r"\s+")
-_NUM = re.compile(r"-?\d[\d,]*")
+_INLINE_WS = re.compile(r"[^\S\n]+")
 
 def normalize_text(s: str) -> str:
     return _WS.sub(" ", s or "").strip()
 
-def parse_number_cell(text: str) -> dict[str, int | None]:
-    nums = [int(m.group(0).replace(",", "")) for m in _NUM.finditer(text or "")]
-    out: dict[str, int | None] = {}
-    for i, key in enumerate(NUMBER_KEYS):
-        out[key] = nums[i] if i < len(nums) else None
-    return out
+def normalize_multiline(s: str) -> str:
+    """줄바꿈은 보존하고 각 줄 내부 공백만 정리한다(비고 원문 구조 유지용)."""
+    lines = [_INLINE_WS.sub(" ", line).strip() for line in (s or "").splitlines()]
+    return "\n".join(lines).strip()
+
+def parse_int(text: str | None) -> int | None:
+    """'1,949' → 1949. 숫자가 없으면 None."""
+    m = re.search(r"-?\d[\d,]*", text or "")
+    return int(m.group(0).replace(",", "")) if m else None

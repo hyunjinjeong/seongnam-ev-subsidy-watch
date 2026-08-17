@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 URL = "https://ev.or.kr/nportal/buySupprt/initSubsidyPaymentCheckAction.do"
 GYEONGGI_CODE = "4100"   # 경기도
 SEONGNAM_CODE = "4113"   # 성남시
+SEONGNAM_NAME = "성남시"  # 결과 그리드의 '지역' 셀에서 행을 골라내는 이름
 KST = ZoneInfo("Asia/Seoul")
 STATE_PATH = "state/seongnam.json"
 CONSECUTIVE_FAILURE_THRESHOLD = 3
