@@ -3,7 +3,7 @@ import re
 
 from .state import diff_remark_hunks
 
-# 텔레그램 메시지 상한은 4096자. 접기(blockquote) 본문을 자를 때 쓰는 여유분.
+# 텔레그램 메시지 상한은 4096자. 접기/코드블록 본문을 자를 때 쓰는 여유분.
 TELEGRAM_LIMIT = 4096
 _BODY_BUDGET = 2600
 
@@ -27,9 +27,15 @@ def _clip(lines: list[str], budget: int = _BODY_BUDGET) -> list[str]:
 
 
 def _quote(lines: list[str], budget: int = _BODY_BUDGET) -> str:
-    """긴 내용은 접히는 인용문으로. 텔레그램이 4줄 넘으면 '더 보기'로 접어준다."""
+    """변화 알림용. 텔레그램이 4줄 넘으면 '더 보기'로 접어준다."""
     body = "\n".join(_esc(x) for x in _clip(lines, budget))
     return f"<blockquote expandable>{body}</blockquote>"
+
+
+def _code(lines: list[str], budget: int = _BODY_BUDGET) -> str:
+    """일일 보고서용 코드블록. HTML 모드에서 <pre>가 기존 ``` 과 같은 모양이다."""
+    body = "\n".join(_esc(x) for x in _clip(lines, budget))
+    return f"<pre>{body}</pre>"
 
 
 def _fmt_file(s: str) -> str:
@@ -162,7 +168,7 @@ def format_daily_report(rows: list[dict], deltas: dict, now_str: str, url: str) 
         parts.append(f"📎 {_esc(files)}")
         parts.append("")
         parts.append("📌 비고")
-        parts.append(_quote(_format_remark(r.get("비고", "")).splitlines(), budget))
+        parts.append(_code(_format_remark(r.get("비고", "")).splitlines(), budget))
     parts.append("")
     parts.append(f"🔗 {_esc(url)}")
     return "\n".join(parts)

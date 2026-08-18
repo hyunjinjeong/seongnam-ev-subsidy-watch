@@ -130,7 +130,7 @@ def test_daily_report_section_format():
     assert "공고 1,949 · 접수 1,745 · 출고 1,740" in msg
 
 
-def test_daily_report_puts_remark_in_expandable_blockquote():
+def test_daily_report_keeps_remark_in_code_block():
     long_remark = (
         "★ 성남시 보급사업 공고 마감★\n"
         "※ 예산 조기소진에 따라 추경예산 확보 후 공고 예정입니다.\n"
@@ -140,8 +140,8 @@ def test_daily_report_puts_remark_in_expandable_blockquote():
     rows = [_row(long_remark, ["본공고 1"])]
     msg = messages.format_daily_report(rows, {"전기승용": -3}, "2026-06-18 (목) 08:00", "http://x")
     assert "접수기간" in msg and "지원대수" in msg   # 잘리지 않음
-    assert "<blockquote expandable>" in msg
-    assert "```" not in msg                          # 더 이상 코드블록 아님
+    assert "<pre>" in msg and "</pre>" in msg        # 기존 코드블록 모양 유지
+    assert "<blockquote" not in msg                  # 접기는 변화 알림에서만
 
 
 def test_daily_report_escapes_html():
@@ -154,7 +154,7 @@ def test_daily_report_stays_within_telegram_limit():
     rows = [_row("\n".join(f"아주 긴 비고 줄 {i}" for i in range(500)), ["본공고 1"])]
     msg = messages.format_daily_report(rows, {}, "2026-06-18 08:00", "http://x")
     assert len(msg) <= 4096
-    assert msg.count("<blockquote expandable>") == msg.count("</blockquote>")
+    assert msg.count("<pre>") == msg.count("</pre>")
 
 
 def test_startup_message():
