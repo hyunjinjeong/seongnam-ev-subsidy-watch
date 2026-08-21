@@ -5,7 +5,7 @@ def _row(비고, 공고파일, 차종="전기승용", **over):
     r = {
         "차종": 차종, "공고파일": 공고파일, "접수방법": "*일반",
         "비고": 비고,
-        "공고종류": "본공고",
+        "공고종류": "본공고", "상태": "마감",
         "접수기간": "2026.02.09 10:00 ~ 2026.05.13 18:00",
         "신청마감": "2026.05.18 18:00",
         "민간공고대수": {"전체": 1949}, "접수대수": {"전체": 1745},
@@ -142,6 +142,25 @@ def test_daily_report_keeps_remark_in_code_block():
     assert "접수기간" in msg and "지원대수" in msg   # 잘리지 않음
     assert "<pre>" in msg and "</pre>" in msg        # 기존 코드블록 모양 유지
     assert "<blockquote" not in msg                  # 접기는 변화 알림에서만
+
+
+def test_daily_report_shows_status_badge():
+    rows = [_row("공고 마감", ["본공고 1"])]
+    msg = messages.format_daily_report(rows, {}, "2026-06-18 08:00", "http://x")
+    assert "🚦 마감" in msg
+
+
+def test_daily_report_omits_status_when_absent():
+    rows = [_row("공고 마감", ["본공고 1"], 상태="")]
+    msg = messages.format_daily_report(rows, {}, "2026-06-18 08:00", "http://x")
+    assert "🚦" not in msg
+
+
+def test_change_alert_shows_status_transition():
+    old = [_row("공고 마감", ["본공고 1"])]
+    new = [_row("추경 접수 시작", ["본공고 1"], 상태="접수중")]
+    msg = messages.format_change_alert(old, new, "http://x")
+    assert "마감 → " in msg and "접수중" in msg
 
 
 def test_daily_report_escapes_html():

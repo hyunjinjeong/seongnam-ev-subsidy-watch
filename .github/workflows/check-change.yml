@@ -46,8 +46,10 @@ jobs:
             git pull --rebase
             git push
           fi
+      # 스크랩 실패는 exit 0이라 job이 성공으로 끝난다. failure() 조건이면
+      # 정작 필요한 fail.png/fail.html이 안 올라가므로 항상 시도한다.
       - uses: actions/upload-artifact@v7
-        if: failure()
+        if: always()
         with:
           name: debug-artifacts
           path: artifacts/

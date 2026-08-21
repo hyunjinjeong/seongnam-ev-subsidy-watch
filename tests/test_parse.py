@@ -25,7 +25,7 @@ def test_parse_int_handles_commas_and_blanks():
 from ev_watch.scraper import _row_from_raw
 
 _GRID = {
-    "시도": "경기", "시군구": "성남시", "차종": "전기승용",
+    "시도": "경기", "시군구": "성남시", "상태": "마감", "차종": "전기승용",
     "공고종류": "[본공고]",
     "접수기간": "2026.02.09 10:00 ~ 2026.05.13 18:00",
     "신청마감": "2026.05.18 18:00",
@@ -53,6 +53,7 @@ def test_row_from_raw_maps_grid_and_detail():
     r = _row_from_raw(_GRID, _DETAIL)
     assert r["시도"] == "경기"
     assert r["시군구"] == "성남시"
+    assert r["상태"] == "마감"          # 지역 셀 상태 배지
     assert r["차종"] == "전기승용"
     assert r["공고종류"] == "본공고"          # 대괄호 제거
     assert r["신청마감"] == "2026.05.18 18:00"
@@ -82,6 +83,12 @@ def test_row_from_raw_missing_categories_become_none():
     r = _row_from_raw(_GRID, detail)
     assert r["민간공고대수"] == {
         "전체": 10, "우선순위": None, "법인기관": None, "택시": None, "일반": None}
+
+def test_row_from_raw_status_absent_is_blank():
+    """상태 배지가 없던 시절(2026-08-21 이전) 구조에서도 깨지지 않아야 한다."""
+    grid = {k: v for k, v in _GRID.items() if k != "상태"}
+    assert _row_from_raw(grid, _DETAIL)["상태"] == ""
+
 
 def test_row_from_raw_tolerates_empty_detail():
     r = _row_from_raw(_GRID, {})

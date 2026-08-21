@@ -17,10 +17,34 @@ _CATEGORY_ALIASES = {"법인·기관": "법인기관", "법인/기관": "법인�
 
 # 결과 그리드(#myGrid)에서 성남시 행들의 row-id와 셀 값을 읽는다.
 # 결과가 AG Grid(div 기반)로 바뀌어 tr/td 대신 col-id 속성으로 셀을 찾는다.
+#
+# 행 식별과 값 추출을 분리한다. 지역 셀에는 '마감' 같은 상태 배지가 예고 없이
+# 추가되므로(2026-08-21 실제로 추가됨), 몇 번째 span인지에 기대면 쉽게 깨진다.
+# 행은 셀 텍스트에 시군구 이름이 있는지로 찾고, 값은 클래스로 뽑는다.
 _GRID_ROWS_JS = r"""(sigungu) => {
   const cell = (row, id) => {
     const c = row.querySelector(`.ag-cell[col-id="${id}"]`);
     return c ? (c.textContent || '').replace(/\s+/g, ' ').trim() : '';
+  };
+  const flat = el => (el.textContent || '').replace(/\s+/g, ' ').trim();
+  // 지역 셀 구조: <button>즐겨찾기</button>
+  //   <div><div class="ag-location-head"><span>시도</span><span class="badge">상태</span></div>
+  //        <span>시군구</span></div>
+  const location = row => {
+    const c = row.querySelector('.ag-cell[col-id="sido"]');
+    if (!c) return {"시도": "", "시군구": "", "상태": "", "_text": ""};
+    const badge = c.querySelector('.ag-location-badge, .badge');
+    const clone = c.cloneNode(true);
+    // 즐겨찾기 버튼과 상태 배지는 지역명이 아니므로 걷어낸다
+    clone.querySelectorAll('button, .ag-location-badge, .badge').forEach(e => e.remove());
+    const head = clone.querySelector('.ag-location-head');
+    const sido = head ? flat(head) : '';
+    if (head) head.remove();
+    return {
+      "시도": sido, "시군구": flat(clone),
+      "상태": badge ? flat(badge) : '',
+      "_text": flat(c),
+    };
   };
   const seen = new Set();
   return Array.from(document.querySelectorAll('#myGrid .ag-row'))
@@ -32,18 +56,15 @@ _GRID_ROWS_JS = r"""(sigungu) => {
       return true;
     })
     .map(row => {
-      // 지역 셀은 <button>즐겨찾기</button><div><span>시도</span><span>시군구</span></div> 구조
-      const spans = Array.from(row.querySelectorAll('.ag-cell[col-id="sido"] span'))
-        .map(s => (s.textContent || '').trim())
-        .filter(t => t && t !== '즐겨찾기');
+      const loc = location(row);
       return {
-        "시도": spans[0] || '', "시군구": spans[1] || '',
+        ...loc,
         "차종": cell(row, 'carNm'), "공고종류": cell(row, 'noticeKind'),
         "접수기간": cell(row, 'period'), "신청마감": cell(row, 'deadline'),
         "_rowId": row.getAttribute('row-id'),
       };
     })
-    .filter(r => r["시군구"] === sigungu);
+    .filter(r => r["_text"].includes(sigungu));
 }"""
 
 # 상세 모달(#modalArticleDetail)에서 비고·접수방법·공고파일·구분별 대수를 읽는다.
@@ -83,6 +104,8 @@ def _row_from_raw(grid: dict, detail: dict) -> dict:
     row = {
         "시도": normalize_text(grid.get("시도", "")),
         "시군구": normalize_text(grid.get("시군구", "")),
+        # 지역 셀의 상태 배지('마감' 등). 배지가 없으면 빈 문자열
+        "상태": normalize_text(grid.get("상태", "")),
         "차종": normalize_text(grid.get("차종", "")),
         "공고종류": normalize_text(grid.get("공고종류", "")).strip("[]"),
         "접수기간": normalize_text(grid.get("접수기간", "")),
